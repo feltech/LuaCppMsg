@@ -1,0 +1,16 @@
+$#include <Queue.hpp>
+$using namespace LuaCppMsg;
+module LuaCppMsg
+{
+class Queue
+{
+public:
+	Queue ();
+	~Queue ();
+
+	void push (lua_State* L, lua_Object msg);
+	sol::table pop ();
+
+	unsigned size ();
+};
+}

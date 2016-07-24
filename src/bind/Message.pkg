@@ -1,0 +1,11 @@
+$#include <Message.hpp>
+$using namespace LuaCppMsg;
+
+class Message
+{
+public:
+	~Message ();
+	Message (int type_);
+
+	int type;
+};
