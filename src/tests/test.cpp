@@ -354,6 +354,27 @@ SCENARIO("push and pop between C++ and Lua")
 			}
 		}
 
+		WHEN("we push an array to the queue from Lua")
+		{
+			lua->executeCode(
+				"lqueue:push({"
+				"  5, true, \"a string\""
+				"})"
+			);
+
+			AND_WHEN("we pop the array from the queue from C++")
+			{
+				Message msg = *queue.pop();
+
+				THEN("the map is correct")
+				{
+					CHECK(msg.get(1).as<Message::Num>() == 5);
+					CHECK(msg.get(2).as<Message::Bool>() == true);
+					CHECK(msg.get(3).as<Message::Str>() == "a string");
+				}
+			}
+		}
+
 		WHEN("we push a table to the queue from Lua")
 		{
 			lua->executeCode(
