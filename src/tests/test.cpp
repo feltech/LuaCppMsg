@@ -72,17 +72,9 @@ SCENARIO("Push and pop from C++")
 		WHEN("we push a map to the queue")
 		{
 			Message::Map msg_map{
-				{
-					Message::Str("type"), Message::Str("MOCK MESSAGE")
-				},
-				{
-					Message::Str("nested"), Message::Map{
-						{ Message::Str("a bool"), true }
-					},
-				},
-				{
-					7, 3.1
-				}
+				{ "type", Message::Str("MOCK MESSAGE") },
+				{ "nested", Message::Map{{ "a bool", true }} },
+				{ 7, 3.1 }
 			};
 			queue.push(Message(msg_map));
 
@@ -334,17 +326,9 @@ SCENARIO("push and pop between C++ and Lua")
 		WHEN("we push a map to the queue from C++")
 		{
 			Message::Map msg_map{
-				{
-					Message::Str("type"), Message::Str("MOCK MESSAGE")
-				},
-				{
-					Message::Str("nested"), Message::Map{
-						{ Message::Str("a bool"), true }
-					},
-				},
-				{
-					7, 3.1
-				}
+				{ "type", Message::Str("MOCK MESSAGE") },
+				{ "nested", Message::Map{{ "a bool", true }} },
+				{ 7, 3.1 }
 			};
 
 			queue.push(Message(msg_map));
@@ -406,8 +390,8 @@ SCENARIO("Multithreaded push/pop")
 			for (unsigned i = 0; i < 100; i++)
 			{
 				queue.push(Message(Message::Map{
-					{Message::Str("type"), Message::Str("FROM C++")},
-					{Message::Str("value"), Message::Num(queue.size())}
+					{"type", Message::Str("FROM C++")},
+					{"value", Message::Num(queue.size())}
 				}));
 			}
 		};
