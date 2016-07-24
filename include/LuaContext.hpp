@@ -82,21 +82,10 @@ public:
     /**
      * @param openDefaultLibs True if luaL_openlibs should be called
      */
-    explicit LuaContext(bool openDefaultLibs = true)
+    explicit LuaContext(bool openDefaultLibs = true) : mOwnsLua(true)
     {
         // luaL_newstate can return null if allocation failed
         mState = luaL_newstate();
-        init(openDefaultLibs);
-    }
-
-    explicit LuaContext(lua_State* L, bool openDefaultLibs = true) : mState(L)
-    {
-    	init(openDefaultLibs);
-    }
-
-    void init(bool openDefaultLibs)
-    {
-        // luaL_newstate can return null if allocation failed
         if (mState == nullptr)
             throw std::bad_alloc();
 
@@ -112,6 +101,16 @@ public:
         if (openDefaultLibs)
             luaL_openlibs(mState);
     }
+
+    /**
+     * Constructor to hook into an existing Lua state.
+     *
+     * @param L exisitng Lua state
+     */
+    explicit LuaContext(lua_State* L) : mState(L), mOwnsLua(false)
+    {
+    }
+
     /**
      * Move constructor
      */
@@ -145,6 +144,8 @@ public:
      */
     ~LuaContext() noexcept
     {
+    	if (!mOwnsLua)
+    		return;
         assert(mState);
         lua_close(mState);
     }
@@ -684,6 +685,8 @@ private:
     //    each table has its getter functions at offset 0, getter members at offset 1, default getter at offset 2
     //    offset 3 is unused, setter members at offset 4, default setter at offset 5
     lua_State*                  mState;
+    /// Flag if we should do the cleanup, or if Lua is owned by another system.
+    bool mOwnsLua;
 
     
     /**************************************************/
