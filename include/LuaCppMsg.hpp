@@ -9,7 +9,7 @@
 #include <boost/optional.hpp>
 #include <boost/functional/hash.hpp>
 #include <LuaContext.hpp>
-
+#include <iostream>
 
 namespace LuaCppMsg
 {
@@ -18,6 +18,9 @@ namespace LuaCppMsg
  * Wrapper class around the messages stored within the queue.
  *
  * Namespaces the message items and provides utility helper methods for extracting values.
+ *
+ * @tparam CustomTypes list of additional types in the variant map/table. Must already be bound
+ * to Lua.
  */
 template <class... CustomTypes>
 class Message
@@ -387,6 +390,57 @@ private:
 	{
 		return m_queue.size();
 	}
+};
+
+
+/**
+ * Wrapper for pointer types that are unsafe.
+ *
+ * Bound C++ types may be passed from Lua as pointers by some binding libraries (e.g. tolua++).
+ * If the object pointed to is temporary, then it may be garbage collected before the queue is
+ * popped.
+ *
+ * To use this wrapper you must override the Lua metatable/prototype's `_typeid` attribute to be
+ * a `CopyPtr<type>`.  Then the queue will ensure the underlying data is copied when it is pushed.
+ *
+ * E.g.
+ * `lua->writeVariable("anObj", LuaContext::Metatable, "_typeid", &typeid(CopyPtr<CustomType>));`
+ * or
+ * `lua->writeVariable("AClass", "_typeid", &typeid(CopyPtr<CustomType>));`
+ * where `anObj` is a Lua object you want to pass, and `AClass` is a Lua prototype that new objects
+ * are constructed from.
+ *
+ */
+template <class T>
+class CopyPtr
+{
+public:
+//	CopyPtr(T* ptr_) : obj(*ptr_)
+//	{
+//		std::cerr << ptr_ << " -> " << &obj << std::endl;
+//	}
+//	CopyPtr(const CopyPtr<T>& other_) : obj(other_.obj)
+//	{
+//		std::cerr << "Copy construct" << std::endl;
+//	}
+//	CopyPtr(const CopyPtr<T>&& other_) : obj(other_.obj)
+//	{
+//		std::cerr << "Move construct" << std::endl;
+//	}
+
+	static CopyPtr<T> copy(void* to_cpy_)
+	{
+		cpy_ptr = CopyPtr<T>();
+		cpy_ptr.obj = to_cpy_;
+	}
+
+	T& operator*() { return obj; }
+	const T& operator*() const { return obj; }
+	T* operator->() { return &obj; }
+	const T* operator->() const { return &obj; }
+
+private:
+	T obj;
 };
 
 } /* namespace LuaCppMsg */
