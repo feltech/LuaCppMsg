@@ -19,6 +19,7 @@ namespace LuaCppMsg
  *
  * Namespaces the message items and provides utility helper methods for extracting values.
  */
+template <class... CustomTypes>
 class Message
 {
 public:
@@ -36,11 +37,12 @@ public:
 	using Key = boost::variant<Int, Str>;
 
 	/// Variant type, which can be a message on its own, or combined in (recursive) unordered_maps.
-	using Item = boost::make_recursive_variant
+	using Item = typename boost::make_recursive_variant
 	<
 		Bool,
 		Num,
 		Str,
+		CustomTypes...,
 		std::unordered_map<
 			Key,
 			boost::recursive_variant_,
@@ -183,9 +185,26 @@ private:
 /**
  * Thread-safe C++/Lua queue of `Message`s.
  */
+template <class... CustomTypes>
 class Queue
 {
 public:
+	using ThisType = Queue<CustomTypes...>;
+	using Msg = typename  LuaCppMsg::Message<CustomTypes...>;
+	using Opt = typename Msg::Opt;
+	/// Boolean type (value).
+	using Bool = typename Msg::Bool;
+	/// Numeric type (value).
+	using Num = typename Msg::Num;
+	/// Integer type (key).
+	using Int = typename Msg::Int;
+	/// String type (key + value).
+	using Str = typename Msg::Str;
+	/// Key type for maps/tables.
+	using Key = typename Msg::Key;
+	using Item = typename Msg::Item;
+	using Map = typename Msg::Map;
+
 	/// Smart pointer to "luawrapper" `LuaContext`.
 	using Lua = std::shared_ptr<LuaContext>;
 
@@ -239,7 +258,7 @@ public:
 	 *
 	 * @param msg_ message to append to queue.
 	 */
-	void push (const Message& msg_)
+	void push (const Msg& msg_)
 	{
 		std::lock_guard<std::mutex> lock(m_mutex);
 		m_queue.push(msg_.item());
@@ -250,7 +269,7 @@ public:
 	 *
 	 * @param msg_ message to append to queue.
 	 */
-	void push (Message&& msg_)
+	void push (Msg&& msg_)
 	{
 		std::lock_guard<std::mutex> lock(m_mutex);
 		m_queue.push(std::move(msg_.item()));
@@ -261,14 +280,14 @@ public:
 	 *
 	 * @return an `optional` that either contains a Message, or is falsey if the queue is empty.
 	 */
-	Message::Opt pop ()
+	Opt pop ()
 	{
 		std::lock_guard<std::mutex> lock(m_mutex);
 
 		if (!size_unsafe())
 			return boost::none;
 
-		Message msg(std::move(m_queue.front()));
+		Msg msg(std::move(m_queue.front()));
 		m_queue.pop();
 		return msg;
 	}
@@ -288,7 +307,7 @@ public:
 	 *
 	 * @param msg_ message to push - will be intelligently converted from basic type or table.
 	 */
-	void push_lua (Message::Item msg_)
+	void push_lua (Item msg_)
 	{
 		std::lock_guard<std::mutex> lock(m_mutex);
 		m_queue.push(msg_);
@@ -299,12 +318,12 @@ public:
 	 *
 	 * @return basic type or table, depending on the message.
 	 */
-	boost::optional<Message::Item> pop_lua ()
+	boost::optional<Item> pop_lua ()
 	{
 		std::lock_guard<std::mutex> lock(m_mutex);
 		if (!size_unsafe())
 			return boost::none;
-		Message::Item msg(std::move(m_queue.front()));
+		Item msg(std::move(m_queue.front()));
 		m_queue.pop();
 		return msg;
 	}
@@ -355,7 +374,7 @@ private:
 	/// Smart pointer to `LuaContext` object used for binding and exposing.
 	Lua m_lua;
 	/// Actual internal queue of messages.
-	std::queue<Message::Item> m_queue;
+	std::queue<Item> m_queue;
 	/// Mutex used for locking push/pop/size calls.
 	std::mutex m_mutex;
 

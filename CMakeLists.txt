@@ -4,8 +4,9 @@ project(LuaCppMsg)
 
 cmake_policy(SET CMP0015 NEW)
 
-set(LUA_INCLUDE_DIR /usr/include CACHE PATH "Lua include directory") 
-set(LUA_LIB_DIR /usr/include CACHE PATH "LuaJIT static library directory") 
+set(LUA_INCLUDE_DIR /usr/include/luajit-2.0 CACHE PATH "Lua include directory") 
+set(LUA_LIB_DIR /usr/lib CACHE PATH "LuaJIT static library directory") 
+set(LUA_LIB_NAME luajit-5.1 CACHE PATH "LuaJIT static library directory") 
 
 set(PROJECT_ROOT ${PROJECT_SOURCE_DIR})
 set(SRC_ROOT ${PROJECT_SOURCE_DIR}/src)
@@ -31,4 +32,4 @@ file(GLOB BIND_CPPS "${SRC_ROOT}/bind/*.cpp")
 include_directories(${PROJECT_ROOT}/include ${LUA_INCLUDE_DIR})
 link_directories(${LUA_LIB_DIR})
 add_executable(tests ${SRC_CPPS} ${TEST_CPPS} ${BIND_CPPS})
-target_link_libraries(tests LuaJIT dl pthread)
+target_link_libraries(tests ${LUA_LIB_NAME} dl pthread)
