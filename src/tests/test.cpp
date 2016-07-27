@@ -594,7 +594,7 @@ SCENARIO("Custom types")
 
 		WHEN("we push in Lua and pop in C++")
 		{
-			lua->writeFunction<CustomType (int)>("LCustom", [](int v) {
+			lua->writeFunction("LCustom", [](int v) {
 				return CustomType(v);
 			});
 
@@ -605,10 +605,7 @@ SCENARIO("Custom types")
 			{
 				ExQueue::Msg msg = *queue.pop();
 
-				THEN("the value is correct")
-				{
-					CHECK(msg.as<CustomType>().val == 5);
-				}
+				CHECK(msg.as<CustomType>().val == 5);
 			}
 		}
 	}

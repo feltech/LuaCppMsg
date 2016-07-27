@@ -17,9 +17,8 @@ for that.
 The best documentation can be found in `src/tests/test.cpp`.  It uses the excellent
 [Catch](https://github.com/philsquared/Catch) C++ BDD-style testing library, so is quite readable.
 
-A sneak peak:
 
-**Push in C++, pop in Lua**
+###Push in C++, pop in Lua
 ```
 WHEN("we push a map to the queue from C++")
 {
@@ -53,7 +52,7 @@ WHEN("we push a map to the queue from C++")
 }
 ```
 
-**Push in Lua, pop in C++**
+###Push in Lua, pop in C++
 ```
 WHEN("we push a table to the queue from Lua")
 {
@@ -75,6 +74,47 @@ WHEN("we push a table to the queue from Lua")
 		}
 	}
 }
+
+###Use custom types
 ```
+using ExQueue = Queue<CustomType>;
+ExQueue queue(L, "lqueue");
+```
+```
+WHEN("we push in C++ and pop in Lua")
+{
+	queue.push(ExQueue::Msg(CustomType(5)));
+
+	lua->executeCode(
+		"lcustom_popped = lqueue:pop()\n"
+		"val = lcustom_popped.val\n"
+	);
+
+	THEN("the value is correct")
+	{
+		int val = lua->readVariable<int>("val");
+
+		CHECK(val == 5);
+	}
+}
+
+WHEN("we push in Lua and pop in C++")
+{
+	lua->writeFunction("LCustom", [](int v) {
+		return CustomType(v);
+	});
+
+	lua->executeCode("lcustom = LCustom(5)");
+	lua->executeCode("lqueue:push(lcustom)");
+
+	THEN("the value is correct")
+	{
+		ExQueue::Msg msg = *queue.pop();
+		
+		CHECK(msg.as<CustomType>().val == 5);
+	}
+}
+```
+
 
 
