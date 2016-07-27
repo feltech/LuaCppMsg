@@ -135,6 +135,13 @@ public:
 	Message(Item&& item_) : m_item(item_) {}
 
 	/**
+	 * Construct a message from given Item, either for creation or when popped from the queue.
+	 *
+	 * @param item_ message item.
+	 */
+	Message(const Item& item_) : m_item(item_) {}
+
+	/**
 	 * Get reference to the Item at the root of this message.
 	 *
 	 * @return item at root of message.
@@ -186,13 +193,49 @@ private:
 
 
 /**
+ * Wrapper for pointer types that are unsafe.
+ *
+ * Bound C++ types may be passed from Lua as pointers by some binding libraries (e.g. tolua++).
+ * If the object pointed to is temporary, then it may be garbage collected before the queue is
+ * popped.
+ *
+ * To use this wrapper you must override the Lua metatable/prototype's `_typeid` attribute to be
+ * a `CopyPtr<type>`.  Then the queue will ensure the underlying data is copied when it is pushed.
+ *
+ * E.g.
+ * `lua->writeVariable("anObj", LuaContext::Metatable, "_typeid", &typeid(CopyPtr<CustomType>));`
+ * or
+ * `lua->writeVariable("AClass", "_typeid", &typeid(CopyPtr<CustomType>));`
+ * where `anObj` is a Lua object you want to pass, and `AClass` is a Lua prototype that new objects
+ * are constructed from.
+ *
+ */
+template <class T>
+class CopyPtr
+{
+public:
+	CopyPtr() = delete;
+	CopyPtr(const CopyPtr<T>& other_) = delete;
+	CopyPtr(CopyPtr<T>&& other_) = delete;
+
+	T& operator*() { return reinterpret_cast<T&>(*this); }
+	const T& operator*() const { return reinterpret_cast<const T&>(*this); }
+//	T* operator->() { return reinterpret_cast<T*>(this); }
+//	const T* operator->() const { return reinterpret_cast<const T*>(this); }
+//
+//private:
+//	T m_cpy;
+};
+
+
+/**
  * Thread-safe C++/Lua queue of `Message`s.
  */
 template <class... CustomTypes>
 class Queue
 {
 public:
-	using ThisType = Queue<CustomTypes...>;
+	using QueueType = Queue<CustomTypes...>;
 	using Msg = typename  LuaCppMsg::Message<CustomTypes...>;
 	using Opt = typename Msg::Opt;
 	/// Boolean type (value).
@@ -208,8 +251,26 @@ public:
 	using Item = typename Msg::Item;
 	using Map = typename Msg::Map;
 
+	using InternalQueue = std::queue<Item>;
+
 	/// Smart pointer to "luawrapper" `LuaContext`.
 	using Lua = std::shared_ptr<LuaContext>;
+
+	class CopyVisitor : public boost::static_visitor<Item>
+	{
+	public:
+		template <class T>
+		Item operator()(CopyPtr<T>* to_copy) const
+	    {
+			return T(*((T*)to_copy));
+	    }
+
+		template <class T>
+		Item operator()(T& to_copy) const
+	    {
+			return to_copy;
+	    }
+	};
 
 	/**
 	 * Basic construction.
@@ -264,7 +325,8 @@ public:
 	void push (const Msg& msg_)
 	{
 		std::lock_guard<std::mutex> lock(m_mutex);
-		m_queue.push(msg_.item());
+		Item item = boost::apply_visitor(CopyVisitor(), msg_.item());
+		m_queue.push(item);
 	}
 
 	/**
@@ -275,7 +337,8 @@ public:
 	void push (Msg&& msg_)
 	{
 		std::lock_guard<std::mutex> lock(m_mutex);
-		m_queue.push(std::move(msg_.item()));
+		Item item = boost::apply_visitor(CopyVisitor(), msg_.item());
+		m_queue.push(std::move(item));
 	}
 
 	/**
@@ -313,7 +376,8 @@ public:
 	void push_lua (Item msg_)
 	{
 		std::lock_guard<std::mutex> lock(m_mutex);
-		m_queue.push(msg_);
+		Item item = boost::apply_visitor(CopyVisitor(), msg_);
+		m_queue.push(item);
 	}
 
 	/**
@@ -393,55 +457,6 @@ private:
 };
 
 
-/**
- * Wrapper for pointer types that are unsafe.
- *
- * Bound C++ types may be passed from Lua as pointers by some binding libraries (e.g. tolua++).
- * If the object pointed to is temporary, then it may be garbage collected before the queue is
- * popped.
- *
- * To use this wrapper you must override the Lua metatable/prototype's `_typeid` attribute to be
- * a `CopyPtr<type>`.  Then the queue will ensure the underlying data is copied when it is pushed.
- *
- * E.g.
- * `lua->writeVariable("anObj", LuaContext::Metatable, "_typeid", &typeid(CopyPtr<CustomType>));`
- * or
- * `lua->writeVariable("AClass", "_typeid", &typeid(CopyPtr<CustomType>));`
- * where `anObj` is a Lua object you want to pass, and `AClass` is a Lua prototype that new objects
- * are constructed from.
- *
- */
-template <class T>
-class CopyPtr
-{
-public:
-//	CopyPtr(T* ptr_) : obj(*ptr_)
-//	{
-//		std::cerr << ptr_ << " -> " << &obj << std::endl;
-//	}
-//	CopyPtr(const CopyPtr<T>& other_) : obj(other_.obj)
-//	{
-//		std::cerr << "Copy construct" << std::endl;
-//	}
-//	CopyPtr(const CopyPtr<T>&& other_) : obj(other_.obj)
-//	{
-//		std::cerr << "Move construct" << std::endl;
-//	}
-
-	static CopyPtr<T> copy(void* to_cpy_)
-	{
-		cpy_ptr = CopyPtr<T>();
-		cpy_ptr.obj = to_cpy_;
-	}
-
-	T& operator*() { return obj; }
-	const T& operator*() const { return obj; }
-	T* operator->() { return &obj; }
-	const T* operator->() const { return &obj; }
-
-private:
-	T obj;
-};
 
 } /* namespace LuaCppMsg */
 

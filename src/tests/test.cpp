@@ -613,7 +613,7 @@ SCENARIO("Unsafe pointers")
 {
 	GIVEN("a queue allowing a custom pointer type safely wrapped in a CopyPtr")
 	{
-		using ExQueue = Queue< CopyPtr<CustomType> >;
+		using ExQueue = Queue< CopyPtr<CustomType>*, CustomType >;
 		ExQueue queue(L, "lqueue");
 		ExQueue::Lua lua = queue.lua();
 
@@ -626,29 +626,31 @@ SCENARIO("Unsafe pointers")
 
 		// Constructor for CustomType within Lua.
 		lua->writeFunction<CustomType* (int)>("LCustom", [temporary](int v) {
+			temporary->val = v;
 			return temporary;
 		});
 
 		WHEN("we push a pointer to a temporary in C++")
 		{
-			queue.push(ExQueue::Msg(CopyPtr<CustomType>(temporary)));
+			queue.push(ExQueue::Msg(
+				(CopyPtr<CustomType>*)temporary
+			));
 			delete temporary;
 			temporary = nullptr;
 
 			AND_WHEN("we pop the pointer")
 			{
 				ExQueue::Msg msg = *queue.pop();
-				const CopyPtr<CustomType>& wrapped = msg.as<CopyPtr<CustomType>>();
+				const CustomType& custom = msg.as<CustomType>();
 
 				THEN("the pointer has changed (object has been copied)")
 				{
-					CHECK(temporary != &(*wrapped));
+					CHECK((void*)temporary != (void*)&custom);
 				}
 
 				THEN("the value is correct")
 				{
-					CHECK(wrapped->val == 4);
-					CHECK((*wrapped).val == 4);
+					CHECK(custom.val == 4);
 				}
 			}
 		}
@@ -660,7 +662,7 @@ SCENARIO("Unsafe pointers")
 			AND_WHEN("we change the metatable to safely wrap the type")
 			{
 				lua->writeVariable(
-					"ltemporary", LuaContext::Metatable, "_typeid", &typeid(CopyPtr<CustomType>)
+					"ltemporary", LuaContext::Metatable, "_typeid", &typeid(CopyPtr<CustomType>*)
 				);
 
 				AND_WHEN("we push the object to the queue and destroy it")
@@ -682,18 +684,15 @@ SCENARIO("Unsafe pointers")
 					AND_WHEN("we pop from the queue in C++")
 					{
 						ExQueue::Msg msg = *queue.pop();
-						const CopyPtr<CustomType>& wrapped = msg.as<CopyPtr<CustomType>>();
-						const CustomType& lcustom_new = *wrapped;
-						const CustomType* plcustom_new = &lcustom_new;
+						const CustomType& custom = msg.as<CustomType>();
 
 						THEN("the value is correct")
 						{
-							CHECK(wrapped->val == 7);
-							CHECK(plcustom_new->val == 7);
+							CHECK(custom.val == 7);
 						}
 						THEN("the pointer has changed")
 						{
-							CHECK(plcustom_new != temporary);
+							CHECK((void*)temporary != (void*)&custom);
 						}
 					}
 				}
