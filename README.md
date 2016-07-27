@@ -3,14 +3,18 @@ A thread-safe message queue between Lua and C++, designed with the aim of having
 Lua state communicate with multiple C++ threads in fast and flexible way.
 
 Uses [lua wrapper](https://github.com/ahupowerdns/luawrapper) and it's support for Lua table 
-conversion from/to `std::unordered_map`s of `boost::variant` types.
+conversion from/to `std::unordered_map`s of 
+[boost::variant])(http://www.boost.org/doc/libs/1_61_0/doc/html/variant.html) types.
 
-Supports messages that are simple types `bool`, `double` and `std::string`, as well as 
-recursive `std::unordered_map`s with keys of `int` or `std::string` and values of `bool`, 
-`double` or `std::string` (or another `std::unordered_map`).
+Supports messages of simple types `bool`, `double` and `std::string`, as well as 
+recursive [std::unordered_map](http://en.cppreference.com/w/cpp/container/unordered_map)s, with 
+keys of `int` or `std::string`, and values of `bool`, 
+`double` or `std::string`, or another `std::unordered_map`.  Custom types can be added via the 
+(variadic) template parameter.
 
-The library is header-only and has the same dependencies as `luawrapper` (`boost` headers and 
-C++11).  To run the tests you will need `LuaJIT` and `pthreads` - there is a `CMakeLists.txt`
+The library is header-only and has the same dependencies as 
+[lua wrapper](https://github.com/ahupowerdns/luawrapper) (boost headers and  C++11).  To run the 
+tests you will need `LuaJIT` and `pthreads` - there is a `CMakeLists.txt`
 for that.
 
 ## Documentation
