@@ -44,13 +44,23 @@ WHEN("we try to pop an empty queue")
 }
 ```
 ```
-WHEN("we push a number to the queue from Lua")
+WHEN("we push a number to the queue")
 {
-	lua->executeCode("lqueue:push(5.4)");
+	queue.push(SimpleQueue::Msg(5.4));
 
-	AND_WHEN("we pop the number from the queue from C++")
+	THEN("the queue size is 1")
+	{
+		CHECK(queue.size() == 1);
+	}
+
+	AND_WHEN("we pop the number from the queue")
 	{
 		SimpleQueue::Msg msg = *queue.pop();
+
+		THEN("the queue size is 0")
+		{
+			CHECK(queue.size() == 0);
+		}
 
 		THEN("the number is correct")
 		{
@@ -58,7 +68,8 @@ WHEN("we push a number to the queue from Lua")
 		}
 	}
 }
-```
+```		
+
 ###Push in C++, pop in Lua
 
 ```
