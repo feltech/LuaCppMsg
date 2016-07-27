@@ -23,12 +23,12 @@ SCENARIO("Push and pop from C++")
 
 		WHEN("we try to pop an empty queue")
 		{
-			SimpleQueue::Opt msg = queue.pop();
+			SimpleQueue::Opt msg_exists = queue.pop();
 
 			THEN("the message evaluates as falsey")
 			{
-				CHECK(!msg);
-				CHECK(!msg.is_initialized());
+				CHECK(!msg_exists);
+				CHECK(!msg_exists.is_initialized());
 			}
 		}
 
@@ -43,16 +43,27 @@ SCENARIO("Push and pop from C++")
 
 			AND_WHEN("we pop the number from the queue")
 			{
-				SimpleQueue::Msg msg = *queue.pop();
+				SimpleQueue::Opt msg_exists = queue.pop();
 
 				THEN("the queue size is 0")
 				{
 					CHECK(queue.size() == 0);
 				}
 
-				THEN("the number is correct")
+				THEN("the message evaluates as truthy")
 				{
-					CHECK(msg.as<SimpleQueue::Num>() == 5.4);
+					CHECK(msg_exists);
+					CHECK(msg_exists.is_initialized());
+				}
+
+				AND_WHEN("we dereference the optional")
+				{
+					SimpleQueue::Msg msg = *msg_exists;
+
+					THEN("the number stored in the message is correct")
+					{
+						CHECK(msg.as<SimpleQueue::Num>() == 5.4);
+					}
 				}
 			}
 		}
