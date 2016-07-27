@@ -500,17 +500,23 @@ struct CustomType
 	{
 		vals = nullptr;
 	}
-	CustomType(const CustomType& other)
+	CustomType(const CustomType& other_)
 	{
-		val = other.val;
+		val = other_.val;
 		vals = new int[1];
-		vals[0] = other.vals[0];
+		vals[0] = other_.vals[0];
 	}
-	CustomType(CustomType&& other)
+	CustomType(CustomType&& other_)
 	{
-		val = other.val;
-		vals = other.vals;
-		other.vals = nullptr;
+		val = other_.val;
+		vals = other_.vals;
+		other_.vals = nullptr;
+	}
+
+	CustomType& operator=(const CustomType& other_)
+	{
+		val = other_.val;
+		vals = other_.vals;
 	}
 
 	CustomType(int val_) : val(val_)
@@ -611,89 +617,124 @@ SCENARIO("Custom types")
 
 SCENARIO("Unsafe pointers")
 {
-	GIVEN("a queue allowing a custom pointer type safely wrapped in a CopyPtr")
+	GIVEN("a temporary object instance and a queue that can safely copy the instance when pushed")
 	{
-		using ExQueue = Queue< CopyPtr<CustomType>*, CustomType >;
+		// Queue accepting both custom type, and a safely wrapped pointer to custom type.
+		using ExQueue = Queue<
+			CustomType, CopyPtr<CustomType>*
+		>;
+		// Initialise queue and get lua context.
 		ExQueue queue(L, "lqueue");
 		ExQueue::Lua lua = queue.lua();
-
-		luaL_openlibs(L);
-
 		// Bind CustomType to Lua.
 		lua->registerMember("val", &CustomType::val);
 
-		CustomType* temporary = new CustomType(4);
+		CustomType* temporary = nullptr;
 
-		// Constructor for CustomType within Lua.
-		lua->writeFunction<CustomType* (int)>("LCustom", [temporary](int v) {
-			temporary->val = v;
-			return temporary;
-		});
-
-		WHEN("we push a pointer to a temporary in C++")
+		WHEN("we place the instance in the Lua state and patch the metatable")
 		{
-			queue.push(ExQueue::Msg(
-				(CopyPtr<CustomType>*)temporary
-			));
-			delete temporary;
-			temporary = nullptr;
+			// Create temporary instance and place in Lua state.
+			CustomType* temporary = new CustomType(7);
+			lua->writeVariable("ltemporary", temporary);
+			//
+			lua->writeVariable(
+				"ltemporary", LuaContext::Metatable, "_typeid", &typeid(CopyPtr<CustomType>*)
+			);
 
-			AND_WHEN("we pop the pointer")
+			AND_WHEN("we push the Lua instance to the queue and destroy it")
 			{
-				ExQueue::Msg msg = *queue.pop();
-				const CustomType& custom = msg.as<CustomType>();
+				lua->executeCode("lqueue:push(ltemporary)");
+				delete temporary;
+				temporary = nullptr;
 
-				THEN("the pointer has changed (object has been copied)")
+				AND_WHEN("we pop from the queue in C++")
 				{
-					CHECK((void*)temporary != (void*)&custom);
-				}
+					ExQueue::Msg msg = *queue.pop();
+					const CustomType& custom = msg.as<CustomType>();
 
-				THEN("the value is correct")
-				{
-					CHECK(custom.val == 4);
-				}
-			}
-		}
-
-		WHEN("we create a Lua object and get a reference to it in C++")
-		{
-			lua->executeCode("ltemporary = LCustom(7)");
-
-			AND_WHEN("we change the metatable to safely wrap the type")
-			{
-				lua->writeVariable(
-					"ltemporary", LuaContext::Metatable, "_typeid", &typeid(CopyPtr<CustomType>*)
-				);
-
-				AND_WHEN("we push the object to the queue and destroy it")
-				{
-					lua->executeCode("lqueue:push(ltemporary)");
-					lua->writeVariable("ltemporary", nullptr);
-					lua->executeCode("collectgarbage()");
-					delete temporary;
-					temporary = nullptr;
-
-					THEN("the local doesn't exist any more")
+					THEN("the value is correct")
 					{
-						boost::optional<std::nullptr_t> ltemporary =
-							lua->readVariable<std::nullptr_t>("ltemporary");
-
-						CHECK(ltemporary.get() == nullptr);
+						CHECK(custom.val == 7);
 					}
 
-					AND_WHEN("we pop from the queue in C++")
+					THEN("the pointer has changed")
 					{
-						ExQueue::Msg msg = *queue.pop();
-						const CustomType& custom = msg.as<CustomType>();
+						CHECK((void*)temporary != (void*)&custom);
+					}
+				}
+			}
 
-						THEN("the value is correct")
-						{
-							CHECK(custom.val == 7);
-						}
-						THEN("the pointer has changed")
-						{
-							CHECK((void*)temporary != (void*)&custom);
-						}
+			AND_WHEN(
+				"we push a table containing the instance to the queue, then destroy the instance"
+			) {
+				lua->executeCode("lqueue:push({temp=ltemporary})");
+				delete temporary;
+				temporary = nullptr;
+
+				AND_WHEN("we pop from the queue in C++")
+				{
+					ExQueue::Msg msg = *queue.pop();
+					const CustomType& copied = msg.get("temp").as<CustomType>();
+
+					THEN("the value is correct")
+					{
+						CHECK(copied.val == 7);
+					}
+
+					THEN("the pointer has changed")
+					{
+						CHECK((void*)temporary != (void*)&copied);
+					}
+				}
+			}
+
+
+			AND_WHEN("we push the wrapped C++ instance to the queue and destroy it")
+			{
+				queue.push(ExQueue::Msg((CopyPtr<CustomType>*)temporary));
+				delete temporary;
+				temporary = nullptr;
+
+				AND_WHEN("we pop from the queue in C++")
+				{
+					ExQueue::Msg msg = *queue.pop();
+					const CustomType& custom = msg.as<CustomType>();
+
+					THEN("the value is correct")
+					{
+						CHECK(custom.val == 7);
+					}
+
+					THEN("the pointer has changed")
+					{
+						CHECK((void*)temporary != (void*)&custom);
+					}
+				}
+			}
+
+			AND_WHEN(
+				"we push a map containing the wrapped C++ instance to the queue, then destroy the "
+				"instance"
+			) {
+				queue.push(ExQueue::Msg(ExQueue::Map{
+					{ "temp", (CopyPtr<CustomType>*)temporary }
+				}));
+				delete temporary;
+				temporary = nullptr;
+
+				AND_WHEN("we pop from the queue in C++")
+				{
+					ExQueue::Msg msg = *queue.pop();
+					const CustomType& copied = msg.get("temp").as<CustomType>();
+
+					THEN("the value is correct")
+					{
+						CHECK(copied.val == 7);
+					}
+
+					THEN("the pointer has changed")
+					{
+						CHECK((void*)temporary != (void*)&copied);
 					}
 				}
 			}

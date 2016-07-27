@@ -17,7 +17,7 @@ namespace LuaCppMsg
 /**
  * Wrapper class around the messages stored within the queue.
  *
- * Namespaces the message items and provides utility helper methods for extracting values.
+ * Provides utility helper methods for extracting values.
  *
  * @tparam CustomTypes list of additional types in the variant map/table. Must already be bound
  * to Lua.
@@ -38,8 +38,7 @@ public:
 	using Str = std::string;
 	/// Key type for maps/tables.
 	using Key = boost::variant<Int, Str>;
-
-	/// Variant type, which can be a message on its own, or combined in (recursive) unordered_maps.
+	/// Variant type, which can be a message on its own, or combined in (recursive) `Map`s.
 	using Item = typename boost::make_recursive_variant
 	<
 		Bool,
@@ -52,8 +51,7 @@ public:
 			boost::hash<Key>
 		>
 	>::type;
-
-	/// An unordered_map containing `Item`s (including other `Map`s).
+	/// A map containing `Item`s (including other `Map`s).
 	using Map = std::unordered_map<Key, Item, boost::hash<Key>>;
 
 	/**
@@ -64,14 +62,14 @@ public:
 	{
 	public:
 		/**
-		 * Create `Nested` helper pointing to a given Item in an `unordered_map` hierarchy.
+		 * Create `Nested` helper pointing to a given Item in an Map hierarchy.
 		 *
 		 * @param pitem_ pointer to Item in the tree
 		 */
 		Nested(const Item* pitem_) : m_pitem(pitem_) {};
 
 		/**
-		 * Extract the variant at this branch of the `unordered_map` as a concrete value.
+		 * Extract the variant at this branch of the Map as a concrete value.
 		 *
 		 * @return extracted value.
 		 */
@@ -82,9 +80,9 @@ public:
 		}
 
 		/**
-		 * Navigate to a value in the current branch of the `unordered_map`.
+		 * Navigate to a value in the current branch of the Map.
 		 *
-		 * @param key_ variant key into `unordered_map`.
+		 * @param key_ variant key into Map.
 		 * @return a new Nested representing the Item referenced at `key_`.
 		 */
 		Nested get(const Key key_) const
@@ -95,9 +93,9 @@ public:
 		}
 
 		/**
-		 * Navigate to a value in the current branch of the `unordered_map`.
+		 * Navigate to a value in the current branch of the Map.
 		 *
-		 * @param key_ string key into `unordered_map`.
+		 * @param key_ string key into Map.
 		 * @return a new Nested representing the Item referenced at `key_`.
 		 */
 		Nested get(const char* key_) const
@@ -108,7 +106,7 @@ public:
 		/**
 		 * Get reference to the Item represented by this object.
 		 *
-		 * @return item on this branch of the `unordered_map`.
+		 * @return item on this branch of the Map.
 		 */
 		const Item& item() const
 		{
@@ -116,7 +114,7 @@ public:
 		}
 
 	private:
-		/// Pointer to `Item` on branch of `unordered_map` represented by this class.
+		/// Pointer to Item on branch of Map represented by this class.
 		const Item* m_pitem;
 	};
 
@@ -146,11 +144,20 @@ public:
 	 *
 	 * @return item at root of message.
 	 */
-	const Item& item() const
+	Item& item()
 	{
 		return m_item;
 	}
 
+	/**
+	 * Get reference to the Item at the root of this message.
+	 *
+	 * @return item at root of message.
+	 */
+	const Item& item() const
+	{
+		return m_item;
+	}
 	/**
 	 * Extract the variant at the root of message as a concrete value.
 	 *
@@ -163,9 +170,9 @@ public:
 	}
 
 	/**
-	 * Navigate to a value in the root `unordered_map`.
+	 * Navigate to a value in the root Map.
 	 *
-	 * @param key_ variant key into `unordered_map`.
+	 * @param key_ variant key into Map.
 	 * @return a new Nested representing the Item referenced at `key_`.
 	 */
 	Nested get(const Key key_) const
@@ -176,9 +183,9 @@ public:
 	}
 
 	/**
-	 * Navigate to a value in the root `unordered_map`.
+	 * Navigate to a value in the root Map.
 	 *
-	 * @param key_ string key into `unordered_map`.
+	 * @param key_ string key into Map.
 	 * @return a new Nested representing the Item referenced at `key_`.
 	 */
 	Nested get(const char* key_) const
@@ -202,6 +209,8 @@ private:
  * To use this wrapper you must override the Lua metatable/prototype's `_typeid` attribute to be
  * a `CopyPtr<type>`.  Then the queue will ensure the underlying data is copied when it is pushed.
  *
+ * The object can then be popped in C++ using `as<T>()`.
+ *
  * E.g.
  * `lua->writeVariable("anObj", LuaContext::Metatable, "_typeid", &typeid(CopyPtr<CustomType>));`
  * or
@@ -209,22 +218,18 @@ private:
  * where `anObj` is a Lua object you want to pass, and `AClass` is a Lua prototype that new objects
  * are constructed from.
  *
+ * @tparam T the type to wrap
  */
 template <class T>
 class CopyPtr
 {
 public:
+	/// Do not allow construction.
 	CopyPtr() = delete;
+	/// Do not allow copy construction.
 	CopyPtr(const CopyPtr<T>& other_) = delete;
+	/// Do not allow move construction.
 	CopyPtr(CopyPtr<T>&& other_) = delete;
-
-	T& operator*() { return reinterpret_cast<T&>(*this); }
-	const T& operator*() const { return reinterpret_cast<const T&>(*this); }
-//	T* operator->() { return reinterpret_cast<T*>(this); }
-//	const T* operator->() const { return reinterpret_cast<const T*>(this); }
-//
-//private:
-//	T m_cpy;
 };
 
 
@@ -248,29 +253,15 @@ public:
 	using Str = typename Msg::Str;
 	/// Key type for maps/tables.
 	using Key = typename Msg::Key;
+	/// Item variant representing any of the supported types.
 	using Item = typename Msg::Item;
+	/// An map containing `Item`s (including other `Map`s).
 	using Map = typename Msg::Map;
-
+	/// Internal queue type for storage of `Item`s.
 	using InternalQueue = std::queue<Item>;
 
 	/// Smart pointer to "luawrapper" `LuaContext`.
 	using Lua = std::shared_ptr<LuaContext>;
-
-	class CopyVisitor : public boost::static_visitor<Item>
-	{
-	public:
-		template <class T>
-		Item operator()(CopyPtr<T>* to_copy) const
-	    {
-			return T(*((T*)to_copy));
-	    }
-
-		template <class T>
-		Item operator()(T& to_copy) const
-	    {
-			return to_copy;
-	    }
-	};
 
 	/**
 	 * Basic construction.
@@ -444,6 +435,53 @@ private:
 	std::queue<Item> m_queue;
 	/// Mutex used for locking push/pop/size calls.
 	std::mutex m_mutex;
+
+	/**
+	 * A visitor over the Item variant to duplicate `CopyPtr<T>`s as `T`s.
+	 *
+	 * The CustomTypes of the Item must have both `CopyPtr<T>*` and `T` as allowed value types.
+	 */
+	class CopyVisitor : public boost::static_visitor<Item>
+	{
+	public:
+		template <class T>
+
+		/**
+		 * Overload taking a pointer to CopyPtr<T> and replacing it with a T.
+		 *
+		 * @param to_copy item pointed to for copying.
+		 * @return variant Item containing a T
+		 */
+		Item operator()(CopyPtr<T>* to_copy) const
+	    {
+			return T(*((T*)to_copy));
+	    }
+
+		/**
+		 * Recursively apply this CopyVisitor to values in Map.
+		 * @param to_copy Map to loop over
+		 * @return the updated Map.
+		 */
+		Item operator()(Map& to_copy) const
+	    {
+			for (auto& item : to_copy)
+				item.second = std::move(boost::apply_visitor(CopyVisitor(), item.second));
+
+			return std::move(to_copy);
+	    }
+
+		/**
+		 * Pass-through for all other types (i.e. not Map or CopyPtr).
+		 *
+		 * @param to_copy general type available to variant Item.
+		 * @return an Item containing the same object as passed.
+		 */
+		template <class T>
+		Item operator()(T& to_copy) const
+	    {
+			return std::move(to_copy);
+	    }
+	};
 
 	/**
 	 * Get size of queue without thread-safety.
