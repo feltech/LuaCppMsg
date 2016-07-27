@@ -77,13 +77,13 @@ WHEN("we push a table to the queue from Lua")
 
 	AND_WHEN("we pop the table from the queue from C++")
 	{
-		Message msg = *queue.pop();
+		SimpleQueue::Msg msg = *queue.pop();
 
 		THEN("the map is correct")
 		{
-			CHECK(msg.get("type").as<Message::Str>() == "MOCK MESSAGE");
-			CHECK(msg.get("nested").get("a bool").as<Message::Bool>() == true);
-			CHECK(msg.get(7).as<Message::Num>() == 3.1);
+			CHECK(msg.get("type").as<SimpleQueue::Str>() == "MOCK SimpleQueue");
+			CHECK(msg.get("nested").get("a bool").as<SimpleQueue::Bool>() == true);
+			CHECK(msg.get(7).as<SimpleQueue::Num>() == 3.1);
 		}
 	}
 }

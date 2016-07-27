@@ -388,7 +388,7 @@ SCENARIO("Push and pop between C++ and Lua")
 		{
 			lua->executeCode(
 				"lqueue:push({"
-				"  type=\"MOCK SimpleQueue\", nested={[\"a bool\"]=true}, [7]=3.1"
+				"  type=\"MOCK MESSAGE\", nested={[\"a bool\"]=true}, [7]=3.1"
 				"})"
 			);
 
@@ -398,7 +398,7 @@ SCENARIO("Push and pop between C++ and Lua")
 
 				THEN("the map is correct")
 				{
-					CHECK(msg.get("type").as<SimpleQueue::Str>() == "MOCK SimpleQueue");
+					CHECK(msg.get("type").as<SimpleQueue::Str>() == "MOCK MESSAGE");
 					CHECK(msg.get("nested").get("a bool").as<SimpleQueue::Bool>() == true);
 					CHECK(msg.get(7).as<SimpleQueue::Num>() == 3.1);
 				}
