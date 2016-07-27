@@ -74,12 +74,14 @@ WHEN("we push a table to the queue from Lua")
 		}
 	}
 }
+```
 
 ###Use custom types
 ```
 using ExQueue = Queue<CustomType>;
 ExQueue queue(L, "lqueue");
 ```
+
 ```
 WHEN("we push in C++ and pop in Lua")
 {
