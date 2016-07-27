@@ -86,7 +86,7 @@ SCENARIO("Push and pop from C++")
 				CHECK(queue.size() == 1);
 			}
 
-			AND_WHEN("we pop the SimpleQueue from the queue")
+			AND_WHEN("we pop the message from the queue")
 			{
 				SimpleQueue::Msg msg = *queue.pop();
 
@@ -232,8 +232,11 @@ SCENARIO("Push and pop between C++ and Lua")
 {
 	GIVEN("A queue bound to lua")
 	{
+		// Simple queue with no user-defined types.
 		using SimpleQueue = Queue<>;
+		// Create the queue and bind and expose to Lua state.
 		SimpleQueue queue(L, "lqueue");
+		// Get a pointer to the `LuaContext`, for convenience.
 		SimpleQueue::Lua lua = queue.lua();
 
 		WHEN("we push a boolean to the queue from Lua")

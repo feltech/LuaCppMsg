@@ -23,16 +23,25 @@ The best documentation can be found in `src/tests/test.cpp`.  It uses the excell
 
 
 ###Push in C++, pop in Lua
+
+```
+// Simple queue with no user-defined types.
+using SimpleQueue = Queue<>;
+// Create the queue and bind and expose to Lua state.
+SimpleQueue queue(L, "lqueue");
+// Get a pointer to the `LuaContext`, for convenience. 
+SimpleQueue::Lua lua = queue.lua();
+```
 ```
 WHEN("we push a map to the queue from C++")
 {
-	Message::Map msg_map{
-		{ "type", Message::Str("MOCK MESSAGE") },
-		{ "nested", Message::Map{{ "a bool", true }} },
+	SimpleQueue::Map msg_map{
+		{ "type", SimpleQueue::Str("MOCK SimpleQueue") },
+		{ "nested", SimpleQueue::Map{{ "a bool", true }} },
 		{ 7, 3.1 }
 	};
 
-	queue.push(Message(msg_map));
+	queue.push(SimpleQueue::Msg(msg_map));
 
 	AND_WHEN("we pop the table from the queue from Lua")
 	{
@@ -44,11 +53,11 @@ WHEN("we push a map to the queue from C++")
 			lua->executeCode("nested_bool = item.nested[\"a bool\"]");
 			lua->executeCode("indexed_num = item[7]");
 
-			Message::Str type = lua->readVariable<Message::Str>("type");
-			Message::Bool nested_bool = lua->readVariable<Message::Bool>("nested_bool");
-			Message::Num indexed_num = lua->readVariable<Message::Num>("indexed_num");
+			SimpleQueue::Str type = lua->readVariable<SimpleQueue::Str>("type");
+			SimpleQueue::Bool nested_bool = lua->readVariable<SimpleQueue::Bool>("nested_bool");
+			SimpleQueue::Num indexed_num = lua->readVariable<SimpleQueue::Num>("indexed_num");
 
-			CHECK(type == "MOCK MESSAGE");
+			CHECK(type == "MOCK SimpleQueue");
 			CHECK(nested_bool == true);
 			CHECK(indexed_num == 3.1);
 		}
