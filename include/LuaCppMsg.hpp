@@ -309,26 +309,37 @@ public:
 	}
 
 	/**
-	 * Thread-safely push a Message in C++.
+	 * Thread-safely push a string in C++.
 	 *
-	 * @param msg_ message to append to queue.
+	 * @param msg_ message string to append to queue.
 	 */
-	void push (const Msg& msg_)
+	void push (const char* msg_)
 	{
 		std::lock_guard<std::mutex> lock(m_mutex);
-		Item item = boost::apply_visitor(CopyVisitor(), msg_.item());
-		m_queue.push(item);
+		m_queue.push(Item(Str(msg_)));
 	}
 
 	/**
-	 * Thread-safely push a Message in C++.
+	 * Thread-safely push a an Item in C++.
 	 *
 	 * @param msg_ message to append to queue.
 	 */
-	void push (Msg&& msg_)
+	void push (const Item& msg_)
 	{
 		std::lock_guard<std::mutex> lock(m_mutex);
-		Item item = boost::apply_visitor(CopyVisitor(), msg_.item());
+		Item item = boost::apply_visitor(CopyVisitor(), msg_);
+		m_queue.push(std::move(item));
+	}
+
+	/**
+	 * Thread-safely push a Item in C++.
+	 *
+	 * @param msg_ message to append to queue.
+	 */
+	void push (Item&& msg_)
+	{
+		std::lock_guard<std::mutex> lock(m_mutex);
+		Item item = boost::apply_visitor(CopyVisitor(), msg_);
 		m_queue.push(std::move(item));
 	}
 

@@ -34,7 +34,7 @@ SCENARIO("Push and pop from C++")
 
 		WHEN("we push a number to the queue")
 		{
-			queue.push(SimpleQueue::Msg(5.4));
+			queue.push(5.4);
 
 			THEN("the queue size is 1")
 			{
@@ -70,7 +70,7 @@ SCENARIO("Push and pop from C++")
 
 		WHEN("we push a string to the queue")
 		{
-			queue.push(SimpleQueue::Msg("MOCK MESSAGE"));
+			queue.push("MOCK MESSAGE");
 
 			AND_WHEN("we pop the string from the queue")
 			{
@@ -90,7 +90,7 @@ SCENARIO("Push and pop from C++")
 				{ "nested", SimpleQueue::Map{{ "a bool", true }} },
 				{ 7, 3.1 }
 			};
-			queue.push(SimpleQueue::Msg(msg_map));
+			queue.push(msg_map);
 
 			THEN("the queue size is 1")
 			{
@@ -298,7 +298,7 @@ SCENARIO("Push and pop between C++ and Lua")
 
 		WHEN("we push a boolean to the queue from C++")
 		{
-			queue.push(SimpleQueue::Msg(true));
+			queue.push(true);
 
 			AND_WHEN("we pop the boolean from the queue from Lua")
 			{
@@ -314,7 +314,7 @@ SCENARIO("Push and pop between C++ and Lua")
 
 		WHEN("we push a number to the queue from C++")
 		{
-			queue.push(SimpleQueue::Msg(5.4));
+			queue.push(5.4);
 
 			AND_WHEN("we pop the number from the queue from Lua")
 			{
@@ -330,7 +330,7 @@ SCENARIO("Push and pop between C++ and Lua")
 
 		WHEN("we push a string to the queue from C++")
 		{
-			queue.push(SimpleQueue::Msg("a string"));
+			queue.push("a string");
 
 			AND_WHEN("we pop the number from the queue from Lua")
 			{
@@ -352,7 +352,7 @@ SCENARIO("Push and pop between C++ and Lua")
 				{ 7, 3.1 }
 			};
 
-			queue.push(SimpleQueue::Msg(msg_map));
+			queue.push(msg_map);
 
 			AND_WHEN("we pop the table from the queue from Lua")
 			{
@@ -432,10 +432,10 @@ SCENARIO("Multithreaded push/pop")
 		auto producer = [&queue]() {
 			for (unsigned i = 0; i < 100; i++)
 			{
-				queue.push(SimpleQueue::Msg(SimpleQueue::Map{
+				queue.push(SimpleQueue::Map{
 					{"type", SimpleQueue::Str("FROM C++")},
 					{"value", SimpleQueue::Num(queue.size())}
-				}));
+				});
 			}
 		};
 
@@ -559,7 +559,7 @@ SCENARIO("Custom types")
 
 		WHEN("we push and pop in C++")
 		{
-			queue.push(ExQueue::Msg(CustomType(3)));
+			queue.push(CustomType(3));
 			ExQueue::Msg msg = *queue.pop();
 
 			THEN("the value is correct")
@@ -592,7 +592,7 @@ SCENARIO("Custom types")
 
 		WHEN("we push in C++ and pop in Lua")
 		{
-			queue.push(ExQueue::Msg(CustomType(5)));
+			queue.push(CustomType(5));
 
 			lua->executeCode(
 				"lcustom_popped = lqueue:pop()\n"
@@ -703,7 +703,7 @@ SCENARIO("Unsafe pointers")
 
 			AND_WHEN("we push the wrapped C++ instance to the queue and destroy it")
 			{
-				queue.push(ExQueue::Msg((CopyPtr<CustomType>*)temporary));
+				queue.push((CopyPtr<CustomType>*)temporary);
 				delete temporary;
 				temporary = nullptr;
 
@@ -728,9 +728,9 @@ SCENARIO("Unsafe pointers")
 				"we push a map containing the wrapped C++ instance to the queue, then destroy the "
 				"instance"
 			) {
-				queue.push(ExQueue::Msg(ExQueue::Map{
+				queue.push(ExQueue::Map{
 					{ "temp", (CopyPtr<CustomType>*)temporary }
-				}));
+				});
 				delete temporary;
 				temporary = nullptr;
 
