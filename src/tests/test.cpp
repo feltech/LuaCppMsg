@@ -12,7 +12,7 @@ SCENARIO("Push and pop from C++")
 {
 	GIVEN("A queue")
 	{
-		using SimpleQueue = Queue<>;
+		using SimpleQueue = Queue<double>;
 
 		SimpleQueue queue;
 
@@ -62,7 +62,7 @@ SCENARIO("Push and pop from C++")
 
 					THEN("the number stored in the message is correct")
 					{
-						CHECK(msg.as<SimpleQueue::Num>() == 5.4);
+						CHECK(msg.as<double>() == 5.4);
 					}
 				}
 			}
@@ -87,7 +87,7 @@ SCENARIO("Push and pop from C++")
 		{
 			SimpleQueue::Map msg_map{
 				{ "type", SimpleQueue::Str("MOCK MESSAGE") },
-				{ "nested", SimpleQueue::Map{{ "a bool", true }} },
+				{ "nested", SimpleQueue::Map{{ 2, 4.9 }} },
 				{ 7, 3.1 }
 			};
 			queue.push(msg_map);
@@ -106,25 +106,19 @@ SCENARIO("Push and pop from C++")
 					CHECK(queue.size() == 0);
 				}
 
-				THEN("the SimpleQueue has the correct type")
+				THEN("the message map can be keyed by strings")
 				{
-					CHECK(
-						msg.get("type").as<SimpleQueue::Str>() == "MOCK MESSAGE");
+					CHECK(msg.get("type").as<SimpleQueue::Str>() == "MOCK MESSAGE");
+				}
+
+				THEN("the message map can be keyed by integers")
+				{
+					CHECK(msg.get(7).as<double>() == 3.1);
 				}
 
 				THEN("we can get nested attributes")
 				{
-					const bool val1 = msg
-						.get(SimpleQueue::Str("nested"))
-						.get(SimpleQueue::Str("a bool"))
-						.as<SimpleQueue::Bool>();
-
-					const SimpleQueue::Num val2 = msg
-						.get(7)
-						.as<SimpleQueue::Num>();
-
-					CHECK(val1 == true);
-					CHECK(val2 == 3.1);
+					CHECK(msg.get("nested").get(2).as<double>() == 4.9);
 				}
 			}
 		}
@@ -136,7 +130,7 @@ SCENARIO("Push and pop from Lua")
 {
 	GIVEN("A queue bound to lua")
 	{
-		using SimpleQueue = Queue<>;
+		using SimpleQueue = Queue<double>;
 
 		SimpleQueue queue(L, "lqueue");
 		SimpleQueue::Lua lua = queue.lua();
@@ -154,7 +148,7 @@ SCENARIO("Push and pop from Lua")
 		    CHECK(queue_size == 0);
 		}
 
-		WHEN("we try to pop a SimpleQueue from empty queue")
+		WHEN("we try to pop a message from empty queue")
 		{
 			lua->executeCode("item = lqueue:pop()");
 
@@ -218,7 +212,7 @@ SCENARIO("Push and pop from Lua")
 		{
 			lua->executeCode(
 				"lqueue:push({"
-				"  type=\"MOCK MESSAGE\", nested={[\"a bool\"]=true}, [7]=3.1"
+				"  type=\"MOCK MESSAGE\", nested={[2]=4.9}, [7]=3.1"
 				"})"
 			);
 
@@ -231,8 +225,8 @@ SCENARIO("Push and pop from Lua")
 					SimpleQueue::Map item = lua->readVariable<SimpleQueue::Map>("item");
 					SimpleQueue::Msg msg(item);
 					CHECK(msg.get("type").as<SimpleQueue::Str>() == "MOCK MESSAGE");
-					CHECK(msg.get("nested").get("a bool").as<SimpleQueue::Bool>() == true);
-					CHECK(msg.get(7).as<SimpleQueue::Num>() == 3.1);
+					CHECK(msg.get("nested").get(2).as<double>() == 4.9);
+					CHECK(msg.get(7).as<double>() == 3.1);
 				}
 			}
 		}
@@ -245,26 +239,11 @@ SCENARIO("Push and pop between C++ and Lua")
 	GIVEN("A queue bound to lua")
 	{
 		// Simple queue with no user-defined types.
-		using SimpleQueue = Queue<>;
+		using SimpleQueue = Queue<double>;
 		// Create the queue and bind and expose to Lua state.
 		SimpleQueue queue(L, "lqueue");
 		// Get a pointer to the `LuaContext`, for convenience.
 		SimpleQueue::Lua lua = queue.lua();
-
-		WHEN("we push a boolean to the queue from Lua")
-		{
-			lua->executeCode("lqueue:push(true)");
-
-			AND_WHEN("we pop the boolean from the queue from C++")
-			{
-				SimpleQueue::Msg msg = *queue.pop();
-
-				THEN("the boolean is correct")
-				{
-					CHECK(msg.as<SimpleQueue::Bool>() == true);
-				}
-			}
-		}
 
 		WHEN("we push a number to the queue from Lua")
 		{
@@ -276,7 +255,7 @@ SCENARIO("Push and pop between C++ and Lua")
 
 				THEN("the number is correct")
 				{
-					CHECK(msg.as<SimpleQueue::Num>() == 5.4);
+					CHECK(msg.as<double>() == 5.4);
 				}
 			}
 		}
@@ -296,22 +275,6 @@ SCENARIO("Push and pop between C++ and Lua")
 			}
 		}
 
-		WHEN("we push a boolean to the queue from C++")
-		{
-			queue.push(true);
-
-			AND_WHEN("we pop the boolean from the queue from Lua")
-			{
-				lua->executeCode("item = lqueue:pop()");
-
-				THEN("the boolean is correct")
-				{
-					SimpleQueue::Bool item = lua->readVariable<SimpleQueue::Bool>("item");
-					CHECK(item == true);
-				}
-			}
-		}
-
 		WHEN("we push a number to the queue from C++")
 		{
 			queue.push(5.4);
@@ -322,7 +285,7 @@ SCENARIO("Push and pop between C++ and Lua")
 
 				THEN("the number is correct")
 				{
-					SimpleQueue::Num item = lua->readVariable<SimpleQueue::Num>("item");
+					double item = lua->readVariable<double>("item");
 					CHECK(item == 5.4);
 				}
 			}
@@ -348,7 +311,7 @@ SCENARIO("Push and pop between C++ and Lua")
 		{
 			SimpleQueue::Map msg_map{
 				{ "type", SimpleQueue::Str("MOCK MESSAGE") },
-				{ "nested", SimpleQueue::Map{{ "a bool", true }} },
+				{ "nested", SimpleQueue::Map{{ 2, 4.9 }} },
 				{ 7, 3.1 }
 			};
 
@@ -361,15 +324,15 @@ SCENARIO("Push and pop between C++ and Lua")
 				THEN("the table is correct")
 				{
 					lua->executeCode("type = item.type");
-					lua->executeCode("nested_bool = item.nested[\"a bool\"]");
+					lua->executeCode("nested_num = item.nested[2]");
 					lua->executeCode("indexed_num = item[7]");
 
 					SimpleQueue::Str type = lua->readVariable<SimpleQueue::Str>("type");
-					SimpleQueue::Bool nested_bool = lua->readVariable<SimpleQueue::Bool>("nested_bool");
-					SimpleQueue::Num indexed_num = lua->readVariable<SimpleQueue::Num>("indexed_num");
+					double nested_num = lua->readVariable<double>("nested_num");
+					double indexed_num = lua->readVariable<double>("indexed_num");
 
 					CHECK(type == "MOCK MESSAGE");
-					CHECK(nested_bool == true);
+					CHECK(nested_num == 4.9);
 					CHECK(indexed_num == 3.1);
 				}
 			}
@@ -379,7 +342,7 @@ SCENARIO("Push and pop between C++ and Lua")
 		{
 			lua->executeCode(
 				"lqueue:push({"
-				"  5, true, \"a string\""
+				"  5, 6.1, \"a string\""
 				"})"
 			);
 
@@ -389,8 +352,8 @@ SCENARIO("Push and pop between C++ and Lua")
 
 				THEN("the map is correct")
 				{
-					CHECK(msg.get(1).as<SimpleQueue::Num>() == 5);
-					CHECK(msg.get(2).as<SimpleQueue::Bool>() == true);
+					CHECK(msg.get(1).as<double>() == 5);
+					CHECK(msg.get(2).as<double>() == 6.1);
 					CHECK(msg.get(3).as<SimpleQueue::Str>() == "a string");
 				}
 			}
@@ -400,7 +363,7 @@ SCENARIO("Push and pop between C++ and Lua")
 		{
 			lua->executeCode(
 				"lqueue:push({"
-				"  type=\"MOCK MESSAGE\", nested={[\"a bool\"]=true}, [7]=3.1"
+				"  type=\"MOCK MESSAGE\", nested={[2]=4.9}, [7]=3.1"
 				"})"
 			);
 
@@ -411,8 +374,8 @@ SCENARIO("Push and pop between C++ and Lua")
 				THEN("the map is correct")
 				{
 					CHECK(msg.get("type").as<SimpleQueue::Str>() == "MOCK MESSAGE");
-					CHECK(msg.get("nested").get("a bool").as<SimpleQueue::Bool>() == true);
-					CHECK(msg.get(7).as<SimpleQueue::Num>() == 3.1);
+					CHECK(msg.get("nested").get(2).as<double>() == 4.9);
+					CHECK(msg.get(7).as<double>() == 3.1);
 				}
 			}
 		}
@@ -424,7 +387,7 @@ SCENARIO("Multithreaded push/pop")
 {
 	GIVEN("C++ producers and consumers, with consumers consuming less than produced")
 	{
-		using SimpleQueue = Queue<>;
+		using SimpleQueue = Queue<double>;
 		SimpleQueue queue(L, "lqueue");
 		SimpleQueue::Lua lua = queue.lua();
 
@@ -434,7 +397,7 @@ SCENARIO("Multithreaded push/pop")
 			{
 				queue.push(SimpleQueue::Map{
 					{"type", SimpleQueue::Str("FROM C++")},
-					{"value", SimpleQueue::Num(queue.size())}
+					{"value", queue.size()}
 				});
 			}
 		};
@@ -477,7 +440,7 @@ SCENARIO("Multithreaded push/pop")
 				THEN("the queue has roughly correct elements")
 				{
 					SimpleQueue::Msg msg = *queue.pop();
-					SimpleQueue::Num num = msg.get("value").as<SimpleQueue::Num>();
+					double num = msg.get("value").as<double>();
 
 					unsigned queue_size = queue.size();
 					unsigned num_luas = 0;
@@ -497,7 +460,7 @@ SCENARIO("Multithreaded push/pop")
 
 					INFO(
 						queue_size << " elements: " << num_cs << " from C++, and " <<
-							num_luas << " from Lua"
+						num_luas << " from Lua"
 					);
 
 					CHECK(0 <= num);

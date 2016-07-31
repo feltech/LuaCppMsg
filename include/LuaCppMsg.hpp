@@ -28,10 +28,6 @@ class Message
 public:
 	/// The type returned when the queue is popped in C++ - allows for `nil` to be represented.
 	using Opt = boost::optional<Message>;
-	/// Boolean type (value).
-	using Bool = bool;
-	/// Numeric type (value).
-	using Num = double;
 	/// Integer type (key).
 	using Int = int;
 	/// String type (key + value).
@@ -41,10 +37,8 @@ public:
 	/// Variant type, which can be a message on its own, or combined in (recursive) `Map`s.
 	using Item = typename boost::make_recursive_variant
 	<
-		Bool,
-		Num,
-		Str,
 		CustomTypes...,
+		Str,
 		std::unordered_map<
 			Key,
 			boost::recursive_variant_,
@@ -85,7 +79,7 @@ public:
 		 * @param key_ variant key into Map.
 		 * @return a new Nested representing the Item referenced at `key_`.
 		 */
-		Nested get(const Key key_) const
+		Nested get(const Key& key_) const
 		{
 			const Map& map = boost::get<Map>(*m_pitem);
 			const Item& item = map.at(key_);
@@ -175,7 +169,7 @@ public:
 	 * @param key_ variant key into Map.
 	 * @return a new Nested representing the Item referenced at `key_`.
 	 */
-	Nested get(const Key key_) const
+	Nested get(const Key& key_) const
 	{
 		const Map& map = boost::get<Map>(m_item);
 		const Item& item = map.at(key_);
@@ -243,10 +237,6 @@ public:
 	using QueueType = Queue<CustomTypes...>;
 	using Msg = typename  LuaCppMsg::Message<CustomTypes...>;
 	using Opt = typename Msg::Opt;
-	/// Boolean type (value).
-	using Bool = typename Msg::Bool;
-	/// Numeric type (value).
-	using Num = typename Msg::Num;
 	/// Integer type (key).
 	using Int = typename Msg::Int;
 	/// String type (key + value).

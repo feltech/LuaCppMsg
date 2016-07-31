@@ -2,31 +2,38 @@
 A thread-safe message queue between Lua and C++, designed with the aim of having a single 
 Lua state communicate with multiple C++ threads in fast and flexible way.
 
-Supports messages of simple types `bool`, `double` and `std::string`, as well as 
-recursive [std::unordered_map](http://en.cppreference.com/w/cpp/container/unordered_map)s, with 
-keys of `int` or `std::string`, and values of `bool`, 
-`double` or `std::string`, or another `std::unordered_map`.  Custom types can be added via the 
-(variadic) template parameter.
+Uses [lua wrapper](https://github.com/ahupowerdns/luawrapper) and its support for Lua table 
+conversion from/to 
+[`std::unordered_map`](http://en.cppreference.com/w/cpp/container/unordered_map)s 
+of [`boost::variant`](http://www.boost.org/doc/libs/1_61_0/doc/html/variant.html) types.
 
-Uses [lua wrapper](https://github.com/ahupowerdns/luawrapper) and it's support for Lua table 
-conversion from/to `std::unordered_map`s 
-of [boost::variant](http://www.boost.org/doc/libs/1_61_0/doc/html/variant.html) types.
+By default supports messages of `std::string` and 
+recursive `std::unordered_map`s, with keys of `int` or `std::string`.  Any number of additional 
+value types are then added via the (variadic) template parameter, and are then available as both 
+message items in their own right, as well as values within a map (or Lua table/array).
 
 The library is header-only and has the same dependencies as 
 [lua wrapper](https://github.com/ahupowerdns/luawrapper) (boost headers and  C++11).  To run the 
 tests you will need `LuaJIT` and `pthreads` - there is a `CMakeLists.txt`
 for that.
 
+### Limitations
+Note that `boost::variant` has it's limitations.  In-particular, when using numeric types
+alongside one-another (including `bool`), then `boost::variant` can often store the value as a 
+type you don't expect (and thus causes `bad_get` exceptions when you attempt to retrive the value).
+Altering the order of the template parameters can, in practice, also affect which type is 
+preferred as the storage type.
+
 ## Documentation
 The best documentation can be found in `src/tests/test.cpp`.  It uses the excellent
 [Catch](https://github.com/philsquared/Catch) C++ BDD-style testing library, so is quite readable.
 
-
 ###Basics
 ```
 // Simple queue with no user-defined types.
-using SimpleQueue = Queue<>;
+using SimpleQueue = Queue<double>;
 // Create the queue and bind and expose to Lua state.
+// (you can also default-construct the queue and `bind` and `to_lua` it some time later).
 SimpleQueue queue(L, "lqueue");
 // Get a pointer to the `LuaContext`, for convenience. 
 SimpleQueue::Lua lua = queue.lua();
@@ -45,7 +52,7 @@ WHEN("we try to pop an empty queue")
 
 WHEN("we push a number to the queue")
 {
-	queue.push(SimpleQueue::Msg(5.4));
+	queue.push(5.4);
 
 	THEN("the queue size is 1")
 	{
@@ -73,7 +80,7 @@ WHEN("we push a number to the queue")
 
 			THEN("the number stored in the message is correct")
 			{
-				CHECK(msg.as<SimpleQueue::Num>() == 5.4);
+				CHECK(msg.as<double>() == 5.4);
 			}
 		}
 	}
@@ -87,11 +94,11 @@ WHEN("we push a map to the queue from C++")
 {
 	SimpleQueue::Map msg_map{
 		{ "type", SimpleQueue::Str("MOCK MESSAGE") },
-		{ "nested", SimpleQueue::Map{{ "a bool", true }} },
+		{ "nested", SimpleQueue::Map{{ 2, 4.9 }} },
 		{ 7, 3.1 }
 	};
 
-	queue.push(SimpleQueue::Msg(msg_map));
+	queue.push(msg_map);
 
 	AND_WHEN("we pop the table from the queue from Lua")
 	{
@@ -100,15 +107,15 @@ WHEN("we push a map to the queue from C++")
 		THEN("the table is correct")
 		{
 			lua->executeCode("type = item.type");
-			lua->executeCode("nested_bool = item.nested[\"a bool\"]");
+			lua->executeCode("nested_num = item.nested[2]");
 			lua->executeCode("indexed_num = item[7]");
 
 			SimpleQueue::Str type = lua->readVariable<SimpleQueue::Str>("type");
-			SimpleQueue::Bool nested_bool = lua->readVariable<SimpleQueue::Bool>("nested_bool");
-			SimpleQueue::Num indexed_num = lua->readVariable<SimpleQueue::Num>("indexed_num");
+			double nested_num = lua->readVariable<double>("nested_num");
+			double indexed_num = lua->readVariable<double>("indexed_num");
 
 			CHECK(type == "MOCK MESSAGE");
-			CHECK(nested_bool == true);
+			CHECK(nested_num == 4.9);
 			CHECK(indexed_num == 3.1);
 		}
 	}
@@ -121,7 +128,7 @@ WHEN("we push a table to the queue from Lua")
 {
 	lua->executeCode(
 		"lqueue:push({"
-		"  type=\"MOCK MESSAGE\", nested={[\"a bool\"]=true}, [7]=3.1"
+		"  type=\"MOCK MESSAGE\", nested={[2]=4.9}, [7]=3.1"
 		"})"
 	);
 
@@ -132,54 +139,9 @@ WHEN("we push a table to the queue from Lua")
 		THEN("the map is correct")
 		{
 			CHECK(msg.get("type").as<SimpleQueue::Str>() == "MOCK MESSAGE");
-			CHECK(msg.get("nested").get("a bool").as<SimpleQueue::Bool>() == true);
-			CHECK(msg.get(7).as<SimpleQueue::Num>() == 3.1);
+			CHECK(msg.get("nested").get(2).as<double>() == 4.9);
+			CHECK(msg.get(7).as<double>() == 3.1);
 		}
 	}
 }
 ```
-
-###Use custom types
-```
-using ExQueue = Queue<CustomType>;
-ExQueue queue(L, "lqueue");
-```
-
-```
-WHEN("we push in C++ and pop in Lua")
-{
-	queue.push(ExQueue::Msg(CustomType(5)));
-
-	lua->executeCode(
-		"lcustom_popped = lqueue:pop()\n"
-		"val = lcustom_popped.val\n"
-	);
-
-	THEN("the value is correct")
-	{
-		int val = lua->readVariable<int>("val");
-
-		CHECK(val == 5);
-	}
-}
-
-WHEN("we push in Lua and pop in C++")
-{
-	lua->writeFunction("LCustom", [](int v) {
-		return CustomType(v);
-	});
-
-	lua->executeCode("lcustom = LCustom(5)");
-	lua->executeCode("lqueue:push(lcustom)");
-
-	THEN("the value is correct")
-	{
-		ExQueue::Msg msg = *queue.pop();
-		
-		CHECK(msg.as<CustomType>().val == 5);
-	}
-}
-```
-
-
-
