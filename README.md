@@ -28,7 +28,7 @@ preferred as the storage type.
 The best documentation can be found in `src/tests/test.cpp`.  It uses the excellent
 [Catch](https://github.com/philsquared/Catch) C++ BDD-style testing library, so is quite readable.
 
-###Basics
+### Basics
 ```
 // Simple queue with no user-defined types.
 using SimpleQueue = Queue<double>;
@@ -122,7 +122,7 @@ WHEN("we push a map to the queue from C++")
 }
 ```
 
-###Push in Lua, pop in C++
+### Push in Lua, pop in C++
 ```
 WHEN("we push a table to the queue from Lua")
 {
