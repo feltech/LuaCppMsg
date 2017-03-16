@@ -87,7 +87,7 @@ WHEN("we push a number to the queue")
 }
 ```		
 
-###Push in C++, pop in Lua
+### Push in C++, pop in Lua
 
 ```
 WHEN("we push a map to the queue from C++")
