@@ -4,7 +4,7 @@
 #include <queue>
 #include <string>
 #include <unordered_map>
-#include <mutex>
+#include <boost/smart_ptr/detail/spinlock.hpp>
 #include <boost/variant.hpp>
 #include <boost/optional.hpp>
 #include <boost/functional/hash.hpp>
@@ -294,7 +294,7 @@ public:
 	 */
 	unsigned size ()
 	{
-		std::lock_guard<std::mutex> lock(m_mutex);
+		std::lock_guard<boost::detail::spinlock> lock(m_lock);
 		return size_unsafe();
 	}
 
@@ -305,7 +305,7 @@ public:
 	 */
 	void push (const char* msg_)
 	{
-		std::lock_guard<std::mutex> lock(m_mutex);
+		std::lock_guard<boost::detail::spinlock> lock(m_lock);
 		m_queue.push(Item(Str(msg_)));
 	}
 
@@ -316,7 +316,7 @@ public:
 	 */
 	void push (const Item& msg_)
 	{
-		std::lock_guard<std::mutex> lock(m_mutex);
+		std::lock_guard<boost::detail::spinlock> lock(m_lock);
 		Item item = boost::apply_visitor(CopyVisitor(), msg_);
 		m_queue.push(std::move(item));
 	}
@@ -328,7 +328,7 @@ public:
 	 */
 	void push (Item&& msg_)
 	{
-		std::lock_guard<std::mutex> lock(m_mutex);
+		std::lock_guard<boost::detail::spinlock> lock(m_lock);
 		Item item = boost::apply_visitor(CopyVisitor(), msg_);
 		m_queue.push(std::move(item));
 	}
@@ -340,7 +340,7 @@ public:
 	 */
 	Opt pop ()
 	{
-		std::lock_guard<std::mutex> lock(m_mutex);
+		std::lock_guard<boost::detail::spinlock> lock(m_lock);
 
 		if (!size_unsafe())
 			return boost::none;
@@ -367,7 +367,7 @@ public:
 	 */
 	void push_lua (Item msg_)
 	{
-		std::lock_guard<std::mutex> lock(m_mutex);
+		std::lock_guard<boost::detail::spinlock> lock(m_lock);
 		Item item = boost::apply_visitor(CopyVisitor(), msg_);
 		m_queue.push(item);
 	}
@@ -379,7 +379,7 @@ public:
 	 */
 	boost::optional<Item> pop_lua ()
 	{
-		std::lock_guard<std::mutex> lock(m_mutex);
+		std::lock_guard<boost::detail::spinlock> lock(m_lock);
 		if (!size_unsafe())
 			return boost::none;
 		Item msg(std::move(m_queue.front()));
@@ -435,7 +435,7 @@ private:
 	/// Actual internal queue of messages.
 	std::queue<Item> m_queue;
 	/// Mutex used for locking push/pop/size calls.
-	std::mutex m_mutex;
+	boost::detail::spinlock m_lock;
 
 	/**
 	 * A visitor over the Item variant to duplicate `CopyPtr<T>`s as `T`s.
@@ -460,6 +460,7 @@ private:
 
 		/**
 		 * Recursively apply this CopyVisitor to values in Map.
+		 *
 		 * @param to_copy Map to loop over
 		 * @return the updated Map.
 		 */
